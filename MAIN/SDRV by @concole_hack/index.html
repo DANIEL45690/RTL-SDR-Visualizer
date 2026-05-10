@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTL-SDR Визуализатор | by @console_hack</title>
+    <style>
+        @font-face {
+            font-family: 'Intel One Mono';
+            src: url('https://fonts.cdnfonts.com/css/intel-one-mono');
+            font-display: swap;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #ffffff;
+            font-family: 'Intel One Mono', 'Courier New', monospace;
+            color: #1a1a1a;
+            padding: 40px 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #1a1a1a;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 400;
+            letter-spacing: -0.5px;
+            margin-bottom: 15px;
+        }
+
+        .ascii {
+            font-size: 10px;
+            white-space: pre;
+            color: #333;
+            margin: 20px 0;
+            background: #f5f5f5;
+            padding: 15px;
+            overflow-x: auto;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #1a1a1a;
+            color: white;
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        .warning,
+        .success,
+        .info {
+            padding: 20px;
+            margin: 25px 0;
+            border-left: 4px solid;
+        }
+
+        .warning {
+            background: #fff3f0;
+            border-left-color: #d32f2f;
+        }
+
+        .success {
+            background: #f0f7f0;
+            border-left-color: #2e7d32;
+        }
+
+        .info {
+            background: #f0f5fa;
+            border-left-color: #1565c0;
+        }
+
+        .step {
+            margin: 30px 0;
+            border: 1px solid #e0e0e0;
+        }
+
+        .step-header {
+            background: #f8f8f8;
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .step-content {
+            padding: 25px;
+        }
+
+        h3 {
+            font-weight: 500;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        h4 {
+            font-weight: 500;
+            margin: 15px 0 10px 0;
+        }
+
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            font-family: 'Intel One Mono', monospace;
+            font-size: 0.85rem;
+            border: 1px solid #ddd;
+        }
+
+        pre {
+            background: #f8f8f8;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Intel One Mono', monospace;
+            font-size: 0.8rem;
+            margin: 15px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        button {
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Intel One Mono', monospace;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin: 10px 0;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin: 35px 0;
+        }
+
+        .card {
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            background: white;
+        }
+
+        .card h3 {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        hr {
+            margin: 15px 0;
+            border: none;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        a {
+            color: #1a1a1a;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        a:hover {
+            color: #666;
+        }
+
+        .status-line {
+            font-family: 'Intel One Mono', monospace;
+            font-size: 0.85rem;
+            margin: 5px 0;
+        }
+
+        ul,
+        ol {
+            margin-left: 25px;
+            margin-top: 10px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="ascii">
+                +-----------------------------------------------------------------------+
+                | _______ _____ _____ _ _ _____ _ |
+                | |__ __| | __ \ / ____| | | | | / ____| | |
+                | | | ______| |__) || (___ | | | | | (___ | | |
+                | | ||______| _ / \___ \ | | | | \___ \| | |
+                | | | | | \ \ ____) | | |____| |____ ____) | |____ |
+                | |_| |_| \_\|_____/ |______|______||_____/|______| |
+                | |
+                | REAL SDR VISUALIZATOR v3.0 |
+                | by @console_hack |
+                +-----------------------------------------------------------------------+
+            </div>
+            <h1>RTL-SDR ВИЗУАЛИЗАТОР СПЕКТРА</h1>
+            <div class="badge">ПОЛНОЕ РУКОВОДСТВО ПО ЗАПУСКУ</div>
+        </div>
+
+        <div class="warning">
+            <strong>ВАЖНОЕ ПРЕДУПРЕЖДЕНИЕ</strong><br><br>
+            Данное руководство предназначено для работы с физическим устройством RTL-SDR.<br>
+            Без USB-приёмника на базе чипа RTL2832U программа НЕ БУДЕТ РАБОТАТЬ.<br>
+            Убедитесь, что у вас есть совместимое устройство перед началом настройки.
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>ТРЕБОВАНИЯ</h3>
+                <ul>
+                    <li>RTL-SDR USB донгл (RTL2832U)</li>
+                    <li>Windows 10 / 11 (64-bit)</li>
+                    <li>Java JDK 11 или новее</li>
+                    <li>Свободный USB порт</li>
+                    <li>Антенна (входит в комплект)</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>ВОЗМОЖНОСТИ</h3>
+                <ul>
+                    <li>Спектр до 2.4 МГц в реальном времени</li>
+                    <li>Диапазон частот: 24 - 1700 МГц</li>
+                    <li>БПФ 4096 точек</li>
+                    <li>Визуализация I/Q сигнала</li>
+                    <li>Регулировка усиления</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>СТАТУС</h3>
+                <div class="status-line">→ Устройство: не подключено</div>
+                <div class="status-line">→ Драйвер: требуется установка</div>
+                <div class="status-line">→ rtl_tcp: ожидание запуска</div>
+                <hr>
+                <div class="status-line">→ Java: проверьте версию</div>
+                <div class="status-line">→ Компиляция: javac RealSDRVisualizer.java</div>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-header">1. УСТАНОВКА ДРАЙВЕРОВ (ZADIG)</div>
+            <div class="step-content">
+                <ol>
+                    <li>Скачайте Zadig с официального сайта: <code>https://zadig.akeo.ie/</code></li>
+                    <li>Подключите RTL-SDR к компьютеру</li>
+                    <li>Запустите Zadig от имени администратора</li>
+                    <li>В меню выберите <code>Options → List All Devices</code></li>
+                    <li>Найдите в списке <code>Bulk-In, Interface (Interface 0)</code></li>
+                    <li>В поле выбора драйвера укажите <code>WinUSB</code></li>
+                    <li>Нажмите кнопку <code>Install Driver</code></li>
+                    <li>Дождитесь завершения установки</li>
+                </ol>
+                <div class="info" style="margin-top: 15px;">
+                    После установки драйвера устройство должно определиться в системе.
+                </div>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-header">2. УСТАНОВКА RTL-SDR УТИЛИТ</div>
+            <div class="step-content">
+                <h4>Способ 1: через Chocolatey (рекомендуется)</h4>
+                <pre># Установка Chocolatey (от имени администратора)
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Установка rtl-sdr
+choco install rtl-sdr -y</pre>
+
+                <h4>Способ 2: ручная установка</h4>
+                <pre>1. Скачайте сборку: https://github.com/harryjyoung/rtl-sdr-windows/releases
+2. Распакуйте архив в папку C:\rtl-sdr
+3. Добавьте C:\rtl-sdr\bin в переменную PATH
+   (Панель управления → Система → Дополнительные параметры → Переменные среды)</pre>
+
+                <h4>Проверка установки</h4>
+                <pre># В командной строке выполните:
+rtl_test -t
+
+# Если устройство найдено, вы увидите информацию о нём</pre>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-header">3. ПРОВЕРКА JAVA</div>
+            <div class="step-content">
+                <h4>Проверьте версию Java</h4>
+                <pre>java -version</pre>
+                <p>Если Java не установлена:</p>
+                <pre>1. Скачайте Java 17 LTS: https://adoptium.net/temurin/releases/
+2. Выберите: Windows x64 .msi Installer
+3. Установите и перезагрузите компьютер</pre>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-header">4. JAVA ВИЗУАЛИЗАТОР</div>
+            <div class="step-content">
+                <h4>Создайте файл RealSDRVisualizer.java</h4>
+                <p>Скопируйте код ниже в файл:</p>
+                <pre id="javaCodeBlock">import javax.swing.*;
+import java.awt.*;
+import java.io.*;
+import java.net.*;
+
+public class RealSDRVisualizer extends JPanel implements Runnable {
+    private static final int WIDTH = 1280;
+    private static final int HEIGHT = 720;
+    private Socket socket;
+    private DataInputStream dis;
+    private DataOutputStream dos;
+    private volatile boolean running = true;
+    private float[] iqBuffer = new float[131072];
+    private int bufferPos = 0;
+    private float[] real = new float[4096];
+    private float[] imag = new float[4096];
+    private int[] spectrum = new int[2048];
+    private double centerFreq = 100000000;
+    private JFrame frame;
+    private JTextField freqField;
+    private JLabel statusLabel;
+
+    public RealSDRVisualizer() {
+        setPreferredSize(new Dimension(WIDTH, HEIGHT));
+        setBackground(Color.WHITE);
+        createUI();
+        connect();
+        new Thread(this).start();
+    }
+
+    private void createUI() {
+        frame = new JFrame("RTL-SDR Visualizer by @console_hack");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        JPanel top = new JPanel();
+        top.setBackground(Color.WHITE);
+        top.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+
+        freqField = new JTextField("100.0", 10);
+        JButton setFreq = new JButton("Set Frequency");
+        statusLabel = new JLabel("Status: Connecting...");
+
+        setFreq.addActionListener(e -> setFrequency());
+
+        top.add(new JLabel("Frequency (MHz):"));
+        top.add(freqField);
+        top.add(setFreq);
+        top.add(statusLabel);
+
+        frame.add(top, BorderLayout.NORTH);
+        frame.add(this, BorderLayout.CENTER);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+    }
+
+    private void connect() {
+        try {
+            socket = new Socket("127.0.0.1", 1234);
+            dis = new DataInputStream(socket.getInputStream());
+            dos = new DataOutputStream(socket.getOutputStream());
+            dos.writeByte(0x01);
+            dos.writeInt(0);
+            dos.writeInt(2400000);
+            dos.writeInt(0);
+            dos.flush();
+            statusLabel.setText("Status: Connected");
+
+            new Thread(() -> {
+                byte[] raw = new byte[131072];
+                while (running) {
+                    try {
+                        int read = dis.read(raw);
+                        for (int i = 0; i < read/2 && bufferPos < iqBuffer.length; i++) {
+                            iqBuffer[bufferPos++] = (raw[i*2] / 128.0f);
+                            iqBuffer[bufferPos++] = (raw[i*2+1] / 128.0f);
+                            if (bufferPos >= iqBuffer.length) bufferPos = 0;
+                        }
+                    } catch (IOException e) {
+                        statusLabel.setText("Status: Connection lost");
+                    }
+                }
+            }).start();
+        } catch (IOException e) {
+            statusLabel.setText("Status: rtl_tcp not running");
+        }
+    }
+
+    private void setFrequency() {
+        try {
+            centerFreq = (long)(Double.parseDouble(freqField.getText()) * 1e6);
+            dos.writeByte(0x02);
+            dos.writeInt((int)centerFreq);
+            dos.flush();
+            statusLabel.setText(String.format("Status: Tuned to %.3f MHz", centerFreq/1e6));
+        } catch (Exception e) {
+            statusLabel.setText("Status: Frequency error");
+        }
+    }
+
+    private void processFFT() {
+        if (bufferPos < 8192) return;
+
+        for (int i = 0; i < 4096; i++) {
+            int idx = (bufferPos - 8192 + i*2) % iqBuffer.length;
+            if (idx >= 0 && idx + 1 < iqBuffer.length) {
+                real[i] = iqBuffer[idx];
+                imag[i] = iqBuffer[idx + 1];
+            }
+        }
+
+        fft(real, imag);
+
+        for (int i = 0; i < 2048; i++) {
+            double mag = Math.hypot(real[i], imag[i]);
+            spectrum[i] = (int)Math.min(350, mag * 300);
+        }
+        repaint();
+    }
+
+    private void fft(float[] r, float[] im) {
+        int n = 4096;
+        int bits = 0;
+        while ((1 << bits) < n) bits++;
+
+        for (int i = 0; i < n; i++) {
+            int rev = 0;
+            for (int j = 0; j < bits; j++) {
+                rev = (rev << 1) | ((i >> j) & 1);
+            }
+            if (i < rev) {
+                float tr = r[i]; r[i] = r[rev]; r[rev] = tr;
+                float ti = im[i]; im[i] = im[rev]; im[rev] = ti;
+            }
+        }
+
+        for (int len = 2; len <= n; len <<= 1) {
+            float angle = (float)(-2 * Math.PI / len);
+            float wrlen = (float)Math.cos(angle);
+            float wilen = (float)Math.sin(angle);
+
+            for (int i = 0; i < n; i += len) {
+                float wr = 1;
+                float wi = 0;
+                for (int j = 0; j < len/2; j++) {
+                    float ur = r[i+j];
+                    float ui = im[i+j];
+                    float vr = r[i+j+len/2] * wr - im[i+j+len/2] * wi;
+                    float vi = r[i+j+len/2] * wi + im[i+j+len/2] * wr;
+                    r[i+j] = ur + vr;
+                    im[i+j] = ui + vi;
+                    r[i+j+len/2] = ur - vr;
+                    im[i+j+len/2] = ui - vi;
+                    float nwr = wr * wrlen - wi * wilen;
+                    float nwi = wr * wilen + wi * wrlen;
+                    wr = nwr;
+                    wi = nwi;
+                }
+            }
+        }
+    }
+
+    public void run() {
+        while (running) {
+            if (dis != null) processFFT();
+            try { Thread.sleep(33); } catch (Exception e) {}
+        }
+    }
+
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0, WIDTH, HEIGHT);
+
+        g.setColor(Color.BLACK);
+        for (int x = 0; x < WIDTH; x++) {
+            int idx = (x * 2048) / WIDTH;
+            if (idx < 2048) {
+                int h = Math.min(HEIGHT - 100, spectrum[idx]);
+                g.drawLine(x, HEIGHT - 60, x, HEIGHT - 60 - h);
+            }
+        }
+
+        g.setFont(new Font("Intel One Mono", Font.PLAIN, 12));
+        g.drawString("RTL-SDR Spectrum Analyzer by @console_hack", 20, 30);
+        g.drawString(String.format("Center: %.3f MHz | Span: 2.4 MHz", centerFreq/1e6), 20, 55);
+
+        for (int i = 0; i <= 6; i++) {
+            int x = 20 + (i * (WIDTH - 40) / 6);
+            double freq = centerFreq - 1200000 + (i * 2400000 / 6);
+            g.drawString(String.format("%.1f", freq/1e6), x - 15, HEIGHT - 25);
+        }
+
+        g.drawRect(10, 10, WIDTH - 20, HEIGHT - 20);
+    }
+
+    public static void main(String[] args) {
+        new RealSDRVisualizer();
+    }
+}</pre>
+                <button onclick="copyJavaCode()">Копировать код</button>
+
+                <h4>Компиляция и запуск</h4>
+                <pre>javac RealSDRVisualizer.java
+java RealSDRVisualizer</pre>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-header">5. ЗАПУСК</div>
+            <div class="step-content">
+                <h4>Запустите rtl_tcp (первое окно терминала)</h4>
+                <pre>rtl_tcp -a 127.0.0.1 -p 1234 -f 100000000 -s 2400000 -g 40</pre>
+
+                <h4>Запустите визуализатор (второе окно терминала)</h4>
+                <pre>java RealSDRVisualizer</pre>
+
+                <h4>Использование</h4>
+                <ul>
+                    <li>Введите частоту в МГц (например 100.5 для FM)</li>
+                    <li>Нажмите "Set Frequency" для перестройки</li>
+                    <li>Наблюдайте спектр сигналов в реальном времени</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="info">
+            <strong>ЧАСТОТЫ ДЛЯ ТЕСТИРОВАНИЯ</strong><br><br>
+            FM-радио: 88-108 МГц<br>
+            Авиадиапазон: 118-137 МГц<br>
+            ДМВ (UHF): 400-470 МГц<br>
+            GSM: 900 МГц, 1800 МГц<br>
+            LTE: 2600 МГц
+        </div>
+
+        <div class="warning">
+            <strong>УСТРАНЕНИЕ НЕИСПРАВНОСТЕЙ</strong><br><br>
+            <strong>Ошибка: rtl_tcp не является командой</strong><br>
+            → Установите rtl-sdr или добавьте папку bin в PATH<br><br>
+            <strong>Ошибка: No RTL-SDR devices found</strong><br>
+            → Переустановите драйвер через Zadig, перезагрузите компьютер<br><br>
+            <strong>Ошибка: Connection refused</strong><br>
+            → Сначала запустите rtl_tcp, только потом Java программу<br><br>
+            <strong>Ошибка: cannot find symbol</strong><br>
+            → Проверьте правильность копирования Java кода
+        </div>
+
+        <div class="success">
+            <strong>ПРИЗНАКИ КОРРЕКТНОЙ РАБОТЫ</strong><br><br>
+            → rtl_test показывает найденные устройства<br>
+            → rtl_tcp пишет "listening on 127.0.0.1:1234"<br>
+            → Java приложение показывает "Status: Connected"<br>
+            → В окне визуализатора отображается спектр сигналов<br>
+            → На FM-частотах наблюдаются характерные пики
+        </div>
+
+        <div class="footer">
+            <p>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
+            <p>by @console_hack | RTL-SDR Visualizer | Open Source | MIT License</p>
+            <p>Версия 3.0 | Для образовательных и исследовательских целей</p>
+            <p>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
+        </div>
+    </div>
+
+    <script>
+        function copyJavaCode() {
+            const code = document.getElementById('javaCodeBlock').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('Код скопирован! Сохраните как RealSDRVisualizer.java');
+            });
+        }
+    </script>
+</body>
+
+</html>
